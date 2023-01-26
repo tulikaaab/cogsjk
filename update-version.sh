@@ -4,7 +4,7 @@
 date > version
 # to update the repo 
 git add update-version.sh
-git add version.txt
+git add version
 git commit 
 git push
 
