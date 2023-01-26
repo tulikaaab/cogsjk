@@ -3,6 +3,3 @@
 date
 
 
-#currentDate = 'date'
-#echo currentDate
-
