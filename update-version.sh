@@ -1,4 +1,3 @@
 #!/bin/sh
 
-date
-
+date > version.txt
