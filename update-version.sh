@@ -1,6 +1,6 @@
 #!/bin/sh
 
-#command to add date and time 
+#command to add date and time and add to filename version
 date > version
 # to update the repo 
 git add update-version.sh
