@@ -5,6 +5,6 @@ date > version
 # to update the repo 
 git add update-version.sh
 git add version
-git commit 
+git commit -a --allow-empty-message -m ' '
 git push
 
