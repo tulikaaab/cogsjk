@@ -83,7 +83,10 @@ class SignalDetection:
         plt.legend()
         plt.show()
 
-
+#sample of calling the plotting functions
+sd = SignalDetection(30,69,89,80)
+sd.plot_roc()       
+sd.plot_sdt(sd.d_prime())
 
 
 #unit test
