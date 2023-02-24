@@ -75,8 +75,9 @@ class SignalDetection:
         # Plot curves and add annotations
         plt.plot(x, y_N, label="Noise") # plot N curve
         plt.plot(x, y_S, label="Signal") # plot S curve
-        plt.axvline((d_prime/2)+ c, color='k', linestyle='--') # plot threshold line C
+        plt.axvline((d_prime/2)+ c,label = 'threshold', color='k', linestyle='--') # plot threshold line C
         plt.plot ([Nstop_x, Stop_x ],[ Ntop_y, Stop_y], label = "d'", linestyle = '-') #plot dprime line 
+	plt.ylim(ymin=0)
         plt.xlabel('Decision Variable')
         plt.ylabel('Probability')
         plt.title('Signal detection theory')
