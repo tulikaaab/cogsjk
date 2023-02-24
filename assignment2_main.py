@@ -1,3 +1,8 @@
+import unittest
+import scipy.stats
+import numpy as np
+import matplotlib.pyplot as plt
+
 class SignalDetection: 
     def __init__ (self, hits, misses, falseAlarms, correctRejections):
         self.hits = hits
