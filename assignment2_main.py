@@ -21,6 +21,20 @@ class SignalDetection:
     
     def criterion(self):
         return  -0.5 * (scipy.stats.norm.ppf(self.hitrate())+ scipy.stats.norm.ppf(self.farate()))
+    #operator overloading
+    def __add__(self, other):
+         hits = self.hits + other.hits
+         misses = self.misses + other.misses 
+         falseAlarms = self.falseAlarms + other.falseAlarms
+         correctRejections = self.correctRejections + other.correctRejections
+         return SignalDetection(hits, misses, falseAlarms, correctRejections) 
+    
+    def __mul__(self, scalar):
+        hits = self.hits * scalar 
+        misses = self.misses * scalar
+        falseAlarms = self.falseAlarms * scalar
+        correctRejections = self.correctRejections * scalar
+        return SignalDetection(hits, misses, falseAlarms, correctRejections)
 
 #unit test
  
