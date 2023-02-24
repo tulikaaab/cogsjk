@@ -36,6 +36,27 @@ class SignalDetection:
         correctRejections = self.correctRejections * scalar
         return SignalDetection(hits, misses, falseAlarms, correctRejections)
 
+    def plot_roc(self):
+        # Calculate the hit rate and false alarm rate for each object
+        hitrate = self.hitrate()
+        falsealarm = self.farate()
+    
+        #coordinates to make the line go from (0,0) - (falsealarm,hitrate) - (1,1)
+        x_coords = [0.0, falsealarm, 1.0]
+        y_coords = [0.0, hitrate, 1.0]
+
+        #plotting and design
+        plt.plot(x_coords, y_coords, 'bo-', label = 'ROC curve')
+        plt.plot([0, 1], [0, 1], 'k-', label = 'reference line') # diagonal line for reference
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.0])
+        plt.xlabel('False Alarm Rate')
+        plt.ylabel('Hit Rate')
+        plt.title('Receiver Operating Characteristic (ROC) Curve')
+        plt.legend()
+        plt.show()
+
+
 #unit test
  
 class TestSignalDetection(unittest.TestCase):
