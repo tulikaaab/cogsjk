@@ -23,11 +23,11 @@ class SignalDetection:
         return  -0.5 * (scipy.stats.norm.ppf(self.hitrate())+ scipy.stats.norm.ppf(self.farate()))
     
     def __add__(self, other):
-         hits = self.hits + other.hits
-         misses = self.misses + other.misses 
-         falseAlarms = self.falseAlarms + other.falseAlarms
-         correctRejections = self.correctRejections + other.correctRejections
-         return SignalDetection(hits, misses, falseAlarms, correctRejections) 
+        hits = self.hits + other.hits
+        misses = self.misses + other.misses 
+        falseAlarms = self.falseAlarms + other.falseAlarms
+        correctRejections = self.correctRejections + other.correctRejections
+        return SignalDetection(hits, misses, falseAlarms, correctRejections) 
     
     def __mul__(self, scalar):
         hits = self.hits * scalar 
@@ -35,32 +35,7 @@ class SignalDetection:
         falseAlarms = self.falseAlarms * scalar
         correctRejections = self.correctRejections * scalar
         return SignalDetection(hits, misses, falseAlarms, correctRejections)
-    
-    def plot_roc(self):
-        # Calculate the hit rate and false alarm rate for each object
-        hitrate = self.hitrate()
-        falsealarm = self.farate()
-    
-        #coordinates to make the line go from (0,0) - (falsealarm,hitrate) - (1,1)
-        x_coords = [0.0, falsealarm, 1.0]
-        y_coords = [0.0, hitrate, 1.0]
 
-        #plotting and design
-        plt.plot(x_coords, y_coords, 'bo-', label = 'ROC curve')
-        plt.plot([0, 1], [0, 1], 'k-', label = 'reference line') # diagonal line for reference
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.0])
-        plt.xlabel('False Alarm Rate')
-        plt.ylabel('Hit Rate')
-        plt.title('Receiver Operating Characteristic (ROC) Curve')
-        plt.legend()
-    
-    def fit_roc():
-        #this gives curve
-        #this will be a harder one, using the optimization stuff 
-        plt.show()
-        pass
-        #hint : write in a way that you dont have the plt.show yet
 
     def plot_sdt(self, d_prime):
         # Set up x values
@@ -89,110 +64,148 @@ class SignalDetection:
         plt.title('Signal detection theory')
         plt.legend()
         plt.show()
-
-    @staticmethod
+    
+    @staticmethod 
     def simulate(dprime, criteriaList, signalCount, noiseCount):
         sdtList = []
-        for criterion in criteriaList:
-            signal = np.random.normal(dprime, 1, signalCount)
-            noise = np.random.normal(0, 1, noiseCount)
-
-            hits = 0
-            misses = 0 
-            falseAlarms = 0
-            correctRejections = 0
-
-            for i in range(signalCount):
-                if signal[i] > criterion:
-                    hits += 1
-                else:
-                    misses += 1
-            
-            for i in range(noiseCount):
-                if noise[i] > criterion:
-                    falseAlarms += 1
-                else:
-                    correctRejections += 1
-            sdt = SignalDetection(hits, misses, falseAlarms, correctRejections)
-            sdtList.append(sdt)
-        
+        for i in range(len(criteriaList)):
+            criterion = criteriaList[i]
+            k = criterion + (dprime/2)
+            hitrate = 1 - scipy.stats.norm.cdf(k - dprime)
+            falsealarmrate = 1 - scipy.stats.norm.cdf(k)
+            hits = np.random.binomial(signalCount, hitrate)
+            misses = signalCount - hits
+            false_alarms = np.random.binomial(noiseCount, falsealarmrate)
+            correct_rejections = noiseCount - false_alarms
+            sdtList.append(SignalDetection(hits, misses, false_alarms, correct_rejections))
         return sdtList
-
-       
-        #generate a static method, specifically static factory method
-        #should take as input, a dprime, list of multiple criteria, a signal 
-        #count and noise count, output array of signal detection objects each of
-     
-
-    def nLogLikelihood(self):
-        # hitrate = 
-        # falsealarm = 
-        #either minimize loss function or maximize likeliehood function 
-        #number of hits time the log of hit rate - all similar functions
-        #takes as input, signal detection object, hypothetical hitrate and hypothetical farate - NOT THE SAME AS WAHT IS ALREADY IN THERE
-        pass
-
-
-    def rocLoss():
-        pass
+    
+    @staticmethod
+    def plot_roc(sdtList):
         
+        plt.figure()
+        for sdt in sdtList:
+            plt.plot(sdt.farate(), sdt.hitrate(), 'o', color = 'black')
+        plt.plot([0, 1], [0, 1], 'k-', label = 'reference line') # diagonal line for reference
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.0])
+        plt.xlabel('False Alarm Rate')
+        plt.ylabel('Hit Rate')
+        plt.title('Receiver Operating Characteristic (ROC) Curve')
+        plt.grid()
+        plt.show()
+
+    @staticmethod
+    def rocCurve(falseAlarmRate, a):
+        xi = scipy.stats.norm.ppf(1 - falseAlarmRate)
+        hitRate = scipy.stats.norm.cdf(xi * (a + scipy.stats.norm.ppf(falseAlarmRate)))
+        return hitRate
+    
+    def nLogLikelihood(self, hit_rate, false_alarm_rate):
+        return -((self.hits * np.log(hit_rate)) + 
+        (self.misses * np.log(1-hit_rate)) + 
+        (self.falseAlarms * np.log(false_alarm_rate)) + 
+        (self.correctRejections * np.log(1-false_alarm_rate)))
+
+    # @staticmethod
+    # def rocLoss(a,sdtList):
+    #      total_loss = 0
+    #      for sdt in sdtList:
+    #          gamma_i = SignalDetection.farate()
+    #          implied = SignalDetection.rocCurve(gamma_i, a)
+    #          loss_i = SignalDetection.nLogLikelihood(implied, gamma_i)
+    #          total_loss += loss_i
+    #      return total_loss
+
+    @staticmethod
+    def rocLoss(a, sdtList):
+        total_loss = 0
+        for i in range(len(sdtList)):
+           sdt = sdtList[i]
+           gamma_i = sdt.farate()
+           implied = sdt.rocCurve(gamma_i, a)
+           loss_i = sdt.nLogLikelihood(implied, gamma_i)
+           total_loss += loss_i
+        return total_loss 
+    
+    # @staticmethod
+    # def fit_roc(sdtList):
+       #ah in blah:
+
+        #this gives curve
+        #this will be a harder one, using the optimization stuff 
+        #plt.show()
+        #pass
+        #hint : write in a way that you dont have the plt.show yet
 
 
-sd = SignalDetection(30,69,89,80)
-sd.plot_roc()       
-sd.plot_sdt(sd.d_prime())
-#my_static_method = staticmethod(my_static_method)
-        
+  
+
+
+
+sdt = [SignalDetection(20, 10, 5, 10), SignalDetection(25, 5, 10, 5), SignalDetection(30, 15, 1, 15), SignalDetection(8, 2, 2, 8),]
+SignalDetection.plot_roc(sdt)
+
+
+
+
 class TestSignalDetection(unittest.TestCase):
+    """
+    Test suite for SignalDetection class.
+    """
+
     def test_d_prime_zero(self):
+        """
+        Test d-prime calculation when hits and false alarms are 0.
+        """
         sd   = SignalDetection(15, 5, 15, 5)
         expected = 0
         obtained = sd.d_prime()
-        # Compare calculated and expected d-prime
         self.assertAlmostEqual(obtained, expected, places=10)
 
     def test_d_prime_nonzero(self):
+        """
+        Test d-prime calculation when hits and false alarms are nonzero.
+        """
         sd   = SignalDetection(15, 10, 15, 5)
         expected = -0.421142647060282
         obtained = sd.d_prime()
-        # Compare calculated and expected d-prime
         self.assertAlmostEqual(obtained, expected, places=10)
 
     def test_criterion_zero(self):
+        """
+        Test criterion calculation when hits and false alarms are both 0.
+        """
         sd   = SignalDetection(5, 5, 5, 5)
-        # Calculate expected criterion
         expected = 0
         obtained = sd.criterion()
-        # Compare calculated and expected criterion
         self.assertAlmostEqual(obtained, expected, places=10)
 
     def test_criterion_nonzero(self):
+        """
+        Test criterion calculation when hits and false alarms are nonzero.
+        """
         sd   = SignalDetection(15, 10, 15, 5)
-        # Calculate expected criterion
         expected = -0.463918426665941
         obtained = sd.criterion()
-        # Compare calculated and expected criterion
         self.assertAlmostEqual(obtained, expected, places=10)
-    
-    def test_for_corruption(self):
-        sd = SignalDetection(15, 5, 15, 5)
-        obtained1 = sd.d_prime()
-        sd.hits = 9
-        obtained2 = sd.d_prime()
-        self.assertNotEqual(obtained1,obtained2)
 
     def test_addition(self):
+        """
+        Test addition of two SignalDetection objects.
+        """
         sd = SignalDetection(1, 1, 2, 1) + SignalDetection(2, 1, 1, 3)
         expected = SignalDetection(3, 2, 3, 4).criterion()
         obtained = sd.criterion()
-        # Compare calculated and expected criterion
         self.assertEqual(obtained, expected)
 
     def test_multiplication(self):
+        """
+        Test multiplication of a SignalDetection object with a scalar.
+        """
         sd = SignalDetection(1, 2, 3, 1) * 4
         expected = SignalDetection(4, 8, 12, 4).criterion()
         obtained = sd.criterion()
-        # Compare calculated and expected criterion
         self.assertEqual(obtained, expected)
 
     def test_simulate_single_criterion(self):
@@ -212,6 +225,7 @@ class TestSignalDetection(unittest.TestCase):
         self.assertEqual(sdt.misses           , sdtList[0].misses)
         self.assertEqual(sdt.falseAlarms      , sdtList[0].falseAlarms)
         self.assertEqual(sdt.correctRejections, sdtList[0].correctRejections)
+
     def test_simulate_multiple_criteria(self):
         """
         Test SignalDetection.simulate method with multiple criterion values.
@@ -227,6 +241,44 @@ class TestSignalDetection(unittest.TestCase):
             self.assertLessEqual (sdt.misses            ,  signalCount)
             self.assertLessEqual (sdt.falseAlarms       ,  noiseCount)
             self.assertLessEqual (sdt.correctRejections ,  noiseCount)
-
+   
+    def test_nLogLikelihood(self):
+        """
+        Test case to verify nLogLikelihood calculation for a SignalDetection object.
+        """
+        sdt = SignalDetection(10, 5, 3, 12)
+        hit_rate = 0.5
+        false_alarm_rate = 0.2
+        expected_nll = - (10 * np.log(hit_rate) +
+                           5 * np.log(1-hit_rate) +
+                           3 * np.log(false_alarm_rate) +
+                          12 * np.log(1-false_alarm_rate))
+        self.assertAlmostEqual(sdt.nLogLikelihood(hit_rate, false_alarm_rate),
+                               expected_nll, places=6)
+        
+    def test_rocLoss(self):
+        """
+        Test case to verify rocLoss calculation for a list of SignalDetection objects.
+        """
+        sdtList = [
+            SignalDetection( 8, 2, 1, 9),
+            SignalDetection(14, 1, 2, 8),
+            SignalDetection(10, 3, 1, 9),
+            SignalDetection(11, 2, 2, 8),
+        ]
+        a = 0
+        expected = 99.3884
+        self.assertAlmostEqual(SignalDetection.rocLoss(a, sdtList), expected, places=4)
+        
+    def test_integration(self):
+        """
+        Test case to verify integration of SignalDetection simulation and ROC fitting.
+        """
+        dPrime  = 1
+        sdtList = SignalDetection.simulate(dPrime, [-1, 0, 1], 1e7, 1e7)
+        aHat    = SignalDetection.fit_roc(sdtList)
+        self.assertAlmostEqual(aHat, dPrime, places=2)
+        plt.close()
+        
 if __name__ == '__main__':
-    unittest.main() #calling
+    unittest.main()
