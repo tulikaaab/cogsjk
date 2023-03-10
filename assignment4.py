@@ -50,14 +50,14 @@ class SignalDetection:
             sdtList.append(SignalDetection(hits, misses, false_alarms, correct_rejections))
         return sdtList
 
-    def plot_sdt(self, d_prime):
+    def plot_sdt(self):
         # Set up x values
         x = np.linspace(-4, 4, 1000)
     
         # Compute y values for noise and signal curves
         y_N = scipy.stats.norm.pdf(x, loc = 0, scale = 1) #norm dist with mean 0 and variance 1
-        y_S = scipy.stats.norm.pdf(x, loc = d_prime, scale = 1) #norm dist with mean d' and varance 1
-        c = d_prime/2 #optimal threshold
+        y_S = scipy.stats.norm.pdf(x, loc = self.d_prime, scale = 1) #norm dist with mean d' and varance 1
+        c = self.d_prime/2 #optimal threshold
 
         #calculate tops of x and y
         Ntop_y = np.max(y_N)
@@ -69,7 +69,7 @@ class SignalDetection:
         # Plot curves and add annotations
         plt.plot(x, y_N, label="Noise") # plot N curve
         plt.plot(x, y_S, label="Signal") # plot S curve
-        plt.axvline((d_prime/2)+ c,label = 'threshold', color='k', linestyle='--') # plot threshold line C
+        plt.axvline((self.d_prime/2)+ c,label = 'threshold', color='k', linestyle='--') # plot threshold line C
         plt.plot ([Nstop_x, Stop_x ],[ Ntop_y, Stop_y], label = "d'", linestyle = '-') #plot dprime line 
         plt.ylim(ymin=0)
         plt.xlabel('Decision Variable')
