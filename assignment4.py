@@ -35,7 +35,20 @@ class SignalDetection:
         falseAlarms = self.falseAlarms * scalar
         correctRejections = self.correctRejections * scalar
         return SignalDetection(hits, misses, falseAlarms, correctRejections)
-
+    @staticmethod 
+    def simulate(dprime, criteriaList, signalCount, noiseCount):
+        sdtList = []
+        for i in range(len(criteriaList)):
+            criterion = criteriaList[i]
+            k = criterion + (dprime/2)
+            hitrate = 1 - scipy.stats.norm.cdf(k - dprime)
+            falsealarmrate = 1 - scipy.stats.norm.cdf(k)
+            hits = np.random.binomial(signalCount, hitrate)
+            misses = signalCount - hits
+            false_alarms = np.random.binomial(noiseCount, falsealarmrate)
+            correct_rejections = noiseCount - false_alarms
+            sdtList.append(SignalDetection(hits, misses, false_alarms, correct_rejections))
+        return sdtList
 
     def plot_sdt(self, d_prime):
         # Set up x values
@@ -65,41 +78,25 @@ class SignalDetection:
         plt.legend()
         plt.show()
     
-    @staticmethod 
-    def simulate(dprime, criteriaList, signalCount, noiseCount):
-        sdtList = []
-        for i in range(len(criteriaList)):
-            criterion = criteriaList[i]
-            k = criterion + (dprime/2)
-            hitrate = 1 - scipy.stats.norm.cdf(k - dprime)
-            falsealarmrate = 1 - scipy.stats.norm.cdf(k)
-            hits = np.random.binomial(signalCount, hitrate)
-            misses = signalCount - hits
-            false_alarms = np.random.binomial(noiseCount, falsealarmrate)
-            correct_rejections = noiseCount - false_alarms
-            sdtList.append(SignalDetection(hits, misses, false_alarms, correct_rejections))
-        return sdtList
-    
     @staticmethod
     def plot_roc(sdtList):
-        
         plt.figure()
-        for sdt in sdtList:
-            plt.plot(sdt.farate(), sdt.hitrate(), 'o', color = 'black')
-        plt.plot([0, 1], [0, 1], 'k-', label = 'reference line') # diagonal line for reference
-        plt.xlim([0.0, 1.0])
-        plt.ylim([0.0, 1.0])
-        plt.xlabel('False Alarm Rate')
-        plt.ylabel('Hit Rate')
-        plt.title('Receiver Operating Characteristic (ROC) Curve')
+        plt.xlim([0,1])
+        plt.ylim([0,1])
+        plt.xlabel("False Alarm Rate")
+        plt.ylabel("Hit Rate")
+        plt.title("Receiver Operating Characteristic Curve")
+        if isinstance(sdtList, list):
+            for i in range(len(sdtList)):
+                sdt = sdtList[i]
+                plt.plot(sdt.farate(), sdt.hitrate(), 'o', color = 'black')
+        x, y = np.linspace(0,1,100), np.linspace(0,1,100)
+        plt.plot(x,y, '--', color = 'black')
         plt.grid()
-        plt.show()
 
     @staticmethod
     def rocCurve(falseAlarmRate, a):
-        xi = scipy.stats.norm.ppf(1 - falseAlarmRate)
-        hitRate = scipy.stats.norm.cdf(xi * (a + scipy.stats.norm.ppf(falseAlarmRate)))
-        return hitRate
+        return scipy.stats.norm.cdf(a + scipy.stats.norm.ppf((falseAlarmRate)))
     
     def nLogLikelihood(self, hit_rate, false_alarm_rate):
         return -((self.hits * np.log(hit_rate)) + 
@@ -107,44 +104,34 @@ class SignalDetection:
         (self.falseAlarms * np.log(false_alarm_rate)) + 
         (self.correctRejections * np.log(1-false_alarm_rate)))
 
-    # @staticmethod
-    # def rocLoss(a,sdtList):
-    #      total_loss = 0
-    #      for sdt in sdtList:
-    #          gamma_i = SignalDetection.farate()
-    #          implied = SignalDetection.rocCurve(gamma_i, a)
-    #          loss_i = SignalDetection.nLogLikelihood(implied, gamma_i)
-    #          total_loss += loss_i
-    #      return total_loss
-
+    @staticmethod
+    def fit_roc(sdtList):
+        SignalDetection.plot_roc(sdtList)
+        a = 0
+        minimize = scipy.optimize.minimize(fun = SignalDetection.rocLoss, x0 = a, method = 'BFGS', args = (sdtList))
+        loss = []
+        for i in range(0,100,1):
+            loss.append((SignalDetection.rocCurve(i/100, float(minimize.x))))
+        plt.plot(np.linspace(0,1,100), loss, '-', color = 'r')
+        aHat = minimize.x
+        return float(aHat)
+    
     @staticmethod
     def rocLoss(a, sdtList):
         total_loss = 0
         for i in range(len(sdtList)):
            sdt = sdtList[i]
-           gamma_i = sdt.farate()
-           implied = sdt.rocCurve(gamma_i, a)
-           loss_i = sdt.nLogLikelihood(implied, gamma_i)
+           farate = sdt.farate()
+           predicted_hr = sdt.rocCurve(farate, a)
+           loss_i = sdt.nLogLikelihood(predicted_hr, farate)
            total_loss += loss_i
         return total_loss 
     
-    # @staticmethod
-    # def fit_roc(sdtList):
-       #ah in blah:
-
-        #this gives curve
-        #this will be a harder one, using the optimization stuff 
-        #plt.show()
-        #pass
-        #hint : write in a way that you dont have the plt.show yet
-
-
+   
+sdtList = SignalDetection.simulate(1, [-1, 0, 1], 1e7, 1e7)
+SignalDetection.fit_roc(sdtList)
+plt.show()
   
-
-
-
-sdt = [SignalDetection(20, 10, 5, 10), SignalDetection(25, 5, 10, 5), SignalDetection(30, 15, 1, 15), SignalDetection(8, 2, 2, 8),]
-SignalDetection.plot_roc(sdt)
 
 
 
@@ -271,14 +258,16 @@ class TestSignalDetection(unittest.TestCase):
         self.assertAlmostEqual(SignalDetection.rocLoss(a, sdtList), expected, places=4)
         
     def test_integration(self):
-        """
-        Test case to verify integration of SignalDetection simulation and ROC fitting.
-        """
-        dPrime  = 1
-        sdtList = SignalDetection.simulate(dPrime, [-1, 0, 1], 1e7, 1e7)
-        aHat    = SignalDetection.fit_roc(sdtList)
-        self.assertAlmostEqual(aHat, dPrime, places=2)
-        plt.close()
+         """
+         Test case to verify integration of SignalDetection simulation and ROC fitting.
+         """
+         dPrime  = 1
+         sdtList = SignalDetection.simulate(dPrime, [-1, 0, 1], 1e7, 1e7)
+         aHat    = SignalDetection.fit_roc(sdtList)
+         self.assertAlmostEqual(aHat, dPrime, places=2)
+         plt.close()
         
 if __name__ == '__main__':
     unittest.main()
+
+
